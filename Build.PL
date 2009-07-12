@@ -11,7 +11,7 @@ my $builder = Module::Build->new(
         'autodie'    => 0,
         'POSIX'      => 0,
         'File::Spec' => 0,
-	'Bot::BasicBot::Pluggable' => '0.60',
+	'Bot::BasicBot::Pluggable' => '0.77',
     },
     build_requires     => { 'Test::More' => 0 },
     add_to_cleanup     => ['Bot-BasicBot-Pluggable-Module-Log-*'],

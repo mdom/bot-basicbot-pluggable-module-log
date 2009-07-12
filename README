@@ -42,6 +42,10 @@ FUNCTIONS
 
     [#botzone 12:34:12] PART: me
 
+  replied
+    When ignore_bot is set to false, we log replies of the bot in this
+    function. The message is formatted as in seen.
+
   help
     Print a friendly help message to the channel.
 

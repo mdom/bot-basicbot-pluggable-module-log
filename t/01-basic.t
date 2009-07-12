@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 19;
+use Test::More tests => 20;
 
 BEGIN {
 	*CORE::GLOBAL::localtime = sub  { return (37,21,9,11,2,109,3,69,0) };
@@ -80,17 +80,20 @@ $module->seen($message_from_bot);
 is($module->last_log(),'[#botzone 09:21:37] <TestBot> Foobar!','log message from bot');
 
 $module->seen($message_to_bot);
-is($module->last_log(),'[#botzone 09:21:37] <bob> Foobar!','log message to bot');
+is($module->last_log(),'[#botzone 09:21:37] <bob> TestBot: Foobar!','log message to bot');
 
 is($module->help(),'Logs all activities in a channel.','expected help message');
 
 $module->clear_log;
 $module->set('user_ignore_pattern', 'Foobar');
 $module->seen($message);
-is($module->last_log(),'','ignore pattern Foobar');
+is($module->last_log(),'','ignore message matching Foobar');
+
+$module->emoted($query,0);
+is($module->last_log(),'','ignore emotes matching Foobar');
 
 $module->seen($foobarless_message);
-is($module->last_log(),'[#botzone 09:21:37] <bob> Bar!','log message without Foobar');
+is($module->last_log(),'[#botzone 09:21:37] <bob> TestBot: Bar!','log message without Foobar');
 
 $module->set('user_ignore_pattern', undef);
 

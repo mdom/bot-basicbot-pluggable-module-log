@@ -1,3 +1,11 @@
+2009-07-12 Mario Domgoergen <dom@math.uni-bonn.de>
+
+	* Using new config interface of BBP
+	* New test to also ignore emotes matching filter pattern
+	* Update dependency on BBP
+	* Address information is now logged
+	* Logging bot replies with new replied interface
+
 2009-06-09 Mario Domgoergen <dom@math.uni-bonn.de>
 
 	* create a symlink to the current logfile

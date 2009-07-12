@@ -9,33 +9,34 @@ use base qw(Bot::BasicBot::Pluggable::Module);
 use POSIX qw(strftime);
 use File::Spec::Functions qw(catfile curdir splitpath);
 
-our $VERSION = '0.07';
+our $VERSION = '0.10';
 
 sub init {
     my ($self) = @_;
-    $self->set( 'user_ignore_pattern', undef )
-      if !defined $self->get('user_ignore_pattern');
-    $self->set( 'user_log_path', curdir() )
-      if !defined $self->get('user_log_path');
-    $self->set( 'user_timestamp_fmt', '%H:%M:%S' )
-      if !defined $self->get('user_timestamp_fmt');
-    $self->set( 'user_ignore_bot', 1 )
-      if !defined $self->get('user_ignore_bot');
-    $self->set( 'user_ignore_joinpart', 0 )
-      if !defined $self->get('user_ignore_joinpart');
-    $self->set( 'user_ignore_query', 1 )
-      if !defined $self->get('user_ignore_query');
-    $self->set( 'user_link_current', 1 )
-      if !defined $self->get('user_link_current');
+    $self->config(
+        {
+            user_ignore_pattern  => undef,
+            user_log_path        => curdir(),
+            user_timestamp_fmt   => '%H:%M:%S',
+            user_ignore_bot      => 1,
+            user_ignore_joinpart => 0,
+            user_ignore_query    => 1,
+            user_link_current    => 1,
+        }
+    );
     return;
 }
 
 sub seen {
     my ( $self, $message ) = @_;
+
     return if $self->_filter_message($message);
-    my $body = $message->{body};
-    my $who  = '<' . $message->{who} . '> ';
-    $self->_log( $message, $who . $body );
+
+    my $address = $message->{address} ? $message->{address} . ': ' : '';
+    my $who     = '<' . $message->{who} . '> ';
+    my $body    = $who . $address . $message->{body};
+
+    $self->_log( $message, $body );
     return;
 }
 
@@ -60,6 +61,16 @@ sub _filter_message {
     }
     return;
 
+}
+
+sub replied {
+    my ( $self, $message, $reply ) = @_;
+    if ( $message->{address} and $message->{who} ) {
+        $message->{address} = $message->{who};
+    }
+    $message->{who}  = $self->bot->nick();
+    $message->{body} = $reply;
+    $self->seen($message);
 }
 
 sub emoted {
@@ -204,6 +215,11 @@ This function is called every time someone leaves the channel. The event
 is logged as follows:
 
 [#botzone 12:34:12] PART: me
+
+=head2 replied
+
+When ignore_bot is set to false, we log replies of the bot in this
+function. The message is formatted as in seen.
 
 =head2 help
 
