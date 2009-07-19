@@ -9,13 +9,13 @@ use base qw(Bot::BasicBot::Pluggable::Module);
 use POSIX qw(strftime);
 use File::Spec::Functions qw(catfile curdir splitpath);
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 sub init {
     my ($self) = @_;
     $self->config(
         {
-            user_ignore_pattern  => undef,
+            user_ignore_pattern  => '',
             user_log_path        => curdir(),
             user_timestamp_fmt   => '%H:%M:%S',
             user_ignore_bot      => 1,
@@ -169,8 +169,7 @@ Bot::BasicBot::Pluggable::Module::Log - Provide logging for Bot::BasicBot::Plugg
 
 =head1 VERSION
 
-Version 0.07
-
+Version 0.11
 
 =head1 SYNOPSIS
 
