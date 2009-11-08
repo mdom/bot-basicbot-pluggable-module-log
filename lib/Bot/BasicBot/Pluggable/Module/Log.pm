@@ -20,6 +20,9 @@ sub init {
             user_timestamp_fmt   => '%H:%M:%S',
             user_ignore_bot      => 1,
             user_ignore_joinpart => 0,
+            user_ignore_userquit => 0,
+            user_ignore_nick_change => 0,
+            user_ignore_topic    => 0,
             user_ignore_query    => 1,
             user_link_current    => 1,
         }
@@ -96,6 +99,53 @@ sub chanpart {
     my ( $self, $message ) = @_;
     return if $self->get('user_ignore_joinpart');
     $self->_log( $message, 'PART: ' . $message->{who} );
+    return;
+}
+
+sub map_channels_for_nick {
+	my ($self,$nick,$function) = @_;
+	for my $channel ($self->bot->channels()) {
+		if (exists($self->bot->channel_data($channel)->{$nick})) {
+			$function->($channel);
+		}
+	}
+}
+
+sub nick_change {
+    my ( $self, $old_nick, $new_nick ) = @_;
+    return if $self->get('user_ignore_nick_change');
+    $self->map_channels_for_nick( $new_nick, sub {
+        $self->_log( {channel => shift } , $old_nick . ' is now known as ' . $new_nick );
+    });
+    return;
+}
+
+sub userquit {
+    my ( $self, $message ) = @_;
+
+    my $who    = $message->{who};
+    my $reason = $message->{reason};
+    $reason    = $reason ? "($reason)" : '';
+
+    return if $self->get('user_ignore_userquit');
+    $self->map_channels_for_nick( $who, sub {
+	$self->_log( {channel => shift } , "QUIT: $who $reason");
+    });
+    return;
+}
+
+sub topic {
+    my ( $self, $message ) = @_;
+    return if $self->get('user_ignore_topic');
+    return if ! defined $message->{topic};
+    $self->_log( $message, 'New Topic: ' .  $message->{topic} );
+    return;
+}
+
+sub kicked {
+    my ( $self, $message ) = @_;
+    return if $self->get('user_ignore_topic');
+    $self->_log( $message, $message->{who} . ' was kicked: ' . $message->{reason} );
     return;
 }
 
