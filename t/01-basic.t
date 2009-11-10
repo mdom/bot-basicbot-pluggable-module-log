@@ -2,36 +2,37 @@
 
 use strict;
 use warnings;
-use Test::More tests => 20;
+use Test::More tests => 17;
+use File::Temp qw(tempdir);
+use Bot::BasicBot::Pluggable;
 
 BEGIN {
 	*CORE::GLOBAL::localtime = sub  { return (37,21,9,11,2,109,3,69,0) };
 }
 
-package Bot::BasicBot::Pluggable::Module::TestLog;
+use Bot::BasicBot::Pluggable::Module::Log;
 
-use base qw(Bot::BasicBot::Pluggable::Module::Log);
+my $dir = tempdir( CLEANUP => 1 );
 
-my $last_log;
-
-sub _log_to_file { $last_log = $_[2]; }
-sub last_log     { return $last_log;  }
-sub clear_log    { $last_log = '';    }
-
-package main;
-
-use Bot::BasicBot::Pluggable;
-
-my $store = Bot::BasicBot::Pluggable::Store->new();
+sub last_log {
+	my ($file,undef) = glob("$dir/*.log"); # this should never be more than one file!
+	return '' if !$file;
+	open(my $log,'<',$file) or die $file . $!;
+	chomp( my $line = <$log> );
+	unlink $file or die $!;
+	return $line;
+}
 
 my $bot = Bot::BasicBot::Pluggable->new(
   channels => [ '#botzone' ],
   nick     => 'TestBot',
-  store    => $store
+  store    => Bot::BasicBot::Pluggable::Store->new(),
 );
 
-my $module = Bot::BasicBot::Pluggable::Module::TestLog->new(Bot => $bot);
+my $module = Bot::BasicBot::Pluggable::Module::Log->new(Bot => $bot);
 
+$module->set('user_log_path',$dir);
+$module->set('user_link_current',0);
 
 my $message            = { channel => '#botzone', body => 'Foobar!', who => 'bob'                           };
 my $message_from_bot   = { channel => '#botzone', body => 'Foobar!', who => 'TestBot'                       };
@@ -39,78 +40,64 @@ my $message_to_bot     = { channel => '#botzone', body => 'Foobar!', who => 'bob
 my $foobarless_message = { channel => '#botzone', body => 'Bar!',    who => 'bob',     address => 'TestBot' };
 my $query              = { channel => 'msg',      body => 'Foobar!', who => 'bob'                           };
 
-is($module->_filename($message),'./botzone_20090311.log','filname in current directory');
-
-$module->set('user_log_path','/tmp');
-
-is($module->_filename($message),'/tmp/botzone_20090311.log','filname in after set directory to /tmp/');
-
-is($module->_format_message($message,'Foobar!'),'[#botzone 09:21:37] Foobar!','format_message with timestamp');
-
 $module->seen($message);
-is($module->last_log(),'[#botzone 09:21:37] <bob> Foobar!','sent normal message to channel');
+is(last_log(),'[#botzone 09:21:37] <bob> Foobar!','sent normal message to channel');
 
 $module->chanjoin($message);
-is($module->last_log(),'[#botzone 09:21:37] JOIN: bob','log channel join');
+is(last_log(),'[#botzone 09:21:37] JOIN: bob','log channel join');
 
 $module->chanpart($message);
-is($module->last_log(),'[#botzone 09:21:37] PART: bob','log channel part');
+is(last_log(),'[#botzone 09:21:37] PART: bob','log channel part');
 
-$module->clear_log;
 $module->set('user_ignore_joinpart',1);
 
 $module->chanjoin($message);
-is($module->last_log(),'','ignore channel join');
+is(last_log(),'','ignore channel join');
 
 $module->chanpart($message);
-is($module->last_log(),'','ignore channel part');
+is(last_log(),'','ignore channel part');
 
-$module->clear_log;
 
 $module->seen($message_from_bot);
-is($module->last_log(),'','ignore message from bot');
+is(last_log(),'','ignore message from bot');
 
 $module->seen($message_to_bot);
-is($module->last_log(),'','ignore message to bot');
+is(last_log(),'','ignore message to bot');
 
-$module->clear_log;
 $module->set('user_ignore_bot',0);
 
 $module->seen($message_from_bot);
-is($module->last_log(),'[#botzone 09:21:37] <TestBot> Foobar!','log message from bot');
+is(last_log(),'[#botzone 09:21:37] <TestBot> Foobar!','log message from bot');
 
 $module->seen($message_to_bot);
-is($module->last_log(),'[#botzone 09:21:37] <bob> TestBot: Foobar!','log message to bot');
+is(last_log(),'[#botzone 09:21:37] <bob> TestBot: Foobar!','log message to bot');
 
 is($module->help(),'Logs all activities in a channel.','expected help message');
 
-$module->clear_log;
 $module->set('user_ignore_pattern', 'Foobar');
 $module->seen($message);
-is($module->last_log(),'','ignore message matching Foobar');
+is(last_log(),'','ignore message matching Foobar');
 
 $module->emoted($query,0);
-is($module->last_log(),'','ignore emotes matching Foobar');
+is(last_log(),'','ignore emotes matching Foobar');
 
 $module->seen($foobarless_message);
-is($module->last_log(),'[#botzone 09:21:37] <bob> TestBot: Bar!','log message without Foobar');
+is(last_log(),'[#botzone 09:21:37] <bob> TestBot: Bar!','log message without Foobar');
 
 $module->set('user_ignore_pattern', undef);
 
-$module->clear_log;
 $module->seen($query);
-is($module->last_log(),'','ignore query');
+is(last_log(),'','ignore query');
 
 $module->set('user_ignore_query',0);
 $module->set('user_ignore_bot',0);
 $module->seen($query);
-is($module->last_log(),'[msg 09:21:37] <bob> Foobar!','log query');
+is(last_log(),'[msg 09:21:37] <bob> Foobar!','log query');
 
 $module->emoted($query,0);
-is($module->last_log(),'[msg 09:21:37] * bob Foobar!','emoting');
+is(last_log(),'[msg 09:21:37] * bob Foobar!','emoting');
 
-$module->clear_log;
 $module->emoted($query,1);
-is($module->last_log(),'','ignore emoting with higher priority than 0');
+is(last_log(),'','ignore emoting with higher priority than 0');
 
 1;

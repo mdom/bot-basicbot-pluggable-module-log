@@ -155,34 +155,19 @@ sub help {
 
 sub _log {
     my ( $self, $message, $text ) = @_;
-    my $logstr = $self->_format_message( $message, $text );
-    $self->_log_to_file( $message, $logstr );
-    return 1;
-}
 
-sub _log_to_file {
-    my ( $self, $message, $logstr ) = @_;
+    my $timestamp = strftime( $self->get('user_timestamp_fmt'), localtime );
+    my $logstr = '[' . $message->{channel} . " $timestamp] $text";
 
-    my $file = $self->_filename($message);
+    my $channel = $message->{channel};
+    $channel =~ s/^#//;
+
+    my $path = $self->get('user_log_path');
+    my $time = strftime( '%Y%m%d', localtime );
+    my $file = catfile ( $path , "${channel}_$time.log") ;
 
     if ( $self->get('user_link_current') ) {
-
-        my $channel = $message->{channel};
-        $channel =~ s/^#//;
-
-        my $link =
-          catfile( $self->get('user_log_path'), $channel . '_current.log' );
-
-        my $old_target = eval { readlink($link) };
-        my ( undef, undef, $new_target ) = splitpath($file);
-
-        if ( !-e $link ) {
-            eval { symlink( $new_target, $link ) };
-        }
-        elsif ( $old_target and $old_target ne $new_target ) {
-            unlink($link);
-            eval { symlink( $new_target, $link ) };
-        }
+        $self->symlink_current( $channel, $file );
     }
 
     open( my $log, '>>', catfile($file) );
@@ -191,24 +176,22 @@ sub _log_to_file {
     return;
 }
 
-sub _filename {
-    my ( $self, $message ) = @_;
+sub symlink_current {
+    my ( $self, $channel, $current_file ) = @_;
 
-    my $channel = $message->{channel};
-    $channel =~ s/^#//;
-    my $file = $channel . '_' . strftime( '%Y%m%d', localtime ) . '.log';
-    my $path = $self->get('user_log_path');
+    my $link =
+      catfile( $self->get('user_log_path'), $channel . '_current.log' );
 
-    return catfile( $path, $file );
-}
+    my $old_target = eval { readlink($link) };
+    my ( undef, undef, $new_target ) = splitpath($current_file);
 
-sub _format_message {
-    my ( $self, $message, $text ) = @_;
-
-    my $timestamp = strftime( $self->get('user_timestamp_fmt'), localtime );
-    my $log_str = '[' . $message->{channel} . " $timestamp] $text";
-
-    return $log_str;
+    if ( !-e $link ) {
+        eval { symlink( $new_target, $link ) };
+    }
+    elsif ( $old_target and $old_target ne $new_target ) {
+        unlink($link);
+        eval { symlink( $new_target, $link ) };
+    }
 }
 
 =pod
