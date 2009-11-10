@@ -1,6 +1,6 @@
 ---
 name: Bot-BasicBot-Pluggable-Module-Log
-version: 0.10
+version: 0.11
 author:
   - 'Mario Domgoergen <dom@math.uni-bonn.de>'
 abstract: Provide logging for Bot::BasicBot::Pluggable
@@ -17,7 +17,7 @@ build_requires:
 provides:
   Bot::BasicBot::Pluggable::Module::Log:
     file: lib/Bot/BasicBot/Pluggable/Module/Log.pm
-    version: 0.10
+    version: 0.11
 generated_by: Module::Build version 0.31012
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html
