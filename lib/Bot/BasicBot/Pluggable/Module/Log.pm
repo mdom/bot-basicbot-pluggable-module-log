@@ -2,31 +2,50 @@ package Bot::BasicBot::Pluggable::Module::Log;
 
 use warnings;
 use strict;
-use autodie;
+use autodie;  
+use POSIX qw(strftime);
+use File::Spec::Functions qw(catfile curdir splitpath);
+use Log::Log4perl;
+use Log::Log4perl::Layout;
+use Log::Log4perl::Level;
 
 use base qw(Bot::BasicBot::Pluggable::Module);
 
-use POSIX qw(strftime);
-use File::Spec::Functions qw(catfile curdir splitpath);
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 sub init {
     my ($self) = @_;
     $self->config(
         {
-            user_ignore_pattern  => '',
-            user_log_path        => curdir(),
-            user_timestamp_fmt   => '%H:%M:%S',
-            user_ignore_bot      => 1,
-            user_ignore_joinpart => 0,
-            user_ignore_userquit => 0,
+            user_ignore_pattern     => '',
+            user_log_path           => curdir(),
+            user_timestamp_fmt      => 'HH:mm:ss',
+            user_ignore_bot         => 1,
+            user_ignore_joinpart    => 0,
+            user_ignore_userquit    => 0,
             user_ignore_nick_change => 0,
-            user_ignore_topic    => 0,
-            user_ignore_query    => 1,
-            user_link_current    => 1,
+            user_ignore_topic       => 0,
+            user_ignore_query       => 1,
+            user_link_current       => 1,
         }
     );
+    if ( not Log::Log4perl->appender_by_name(ref $self) ) {
+	    my $log = Log::Log4perl->get_logger(ref $self);
+	    my $file_appender = Log::Log4perl::Appender->new(
+		"Log::Log4perl::Appender::File",
+		name     => ref $self,
+		filename => '/tmp/nonexistent',
+		create_at_logtime => 1,
+	    );
+
+	    my $timestamp = $self->get('user_timestamp_fmt');
+	    my $layout = Log::Log4perl::Layout::PatternLayout->new("[#%c{1} %d{$timestamp}] %m%n");
+	    $file_appender->layout($layout);
+	    $log->add_appender($file_appender);
+	    $log->level($INFO);
+    }
+
     return;
 }
 
@@ -156,23 +175,24 @@ sub help {
 sub _log {
     my ( $self, $message, $text ) = @_;
 
-    my $timestamp = strftime( $self->get('user_timestamp_fmt'), localtime );
-    my $logstr = '[' . $message->{channel} . " $timestamp] $text";
-
     my $channel = $message->{channel};
     $channel =~ s/^#//;
+
+    my $log = Log::Log4perl->get_logger((ref $self) . "::$channel" );
 
     my $path = $self->get('user_log_path');
     my $time = strftime( '%Y%m%d', localtime );
     my $file = catfile ( $path , "${channel}_$time.log") ;
 
-    if ( $self->get('user_link_current') ) {
+    my $appender = Log::Log4perl->appender_by_name(ref $self);
+
+    if ( $appender->filename ne $file and $self->get('user_link_current') ) {
         $self->symlink_current( $channel, $file );
     }
 
-    open( my $log, '>>', catfile($file) );
-    print {$log} $logstr . "\n";
-    close($log);
+    $appender->file_switch($file);
+
+    $log->info($text);
     return;
 }
 
@@ -182,13 +202,12 @@ sub symlink_current {
     my $link =
       catfile( $self->get('user_log_path'), $channel . '_current.log' );
 
-    my $old_target = eval { readlink($link) };
     my ( undef, undef, $new_target ) = splitpath($current_file);
 
     if ( !-e $link ) {
         eval { symlink( $new_target, $link ) };
     }
-    elsif ( $old_target and $old_target ne $new_target ) {
+    else {
         unlink($link);
         eval { symlink( $new_target, $link ) };
     }

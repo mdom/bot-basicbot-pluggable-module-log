@@ -92,10 +92,10 @@ is(last_log(),'','ignore query');
 $module->set('user_ignore_query',0);
 $module->set('user_ignore_bot',0);
 $module->seen($query);
-is(last_log(),'[msg 09:21:37] <bob> Foobar!','log query');
+is(last_log(),'[#msg 09:21:37] <bob> Foobar!','log query');
 
 $module->emoted($query,0);
-is(last_log(),'[msg 09:21:37] * bob Foobar!','emoting');
+is(last_log(),'[#msg 09:21:37] * bob Foobar!','emoting');
 
 $module->emoted($query,1);
 is(last_log(),'','ignore emoting with higher priority than 0');
